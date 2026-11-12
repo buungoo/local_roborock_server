@@ -914,6 +914,12 @@ class MqttTlsProxy:
     def stop(self) -> None:
         self._running = False
         if self._server_socket:
+            # Closing a listening socket from another thread does not reliably
+            # interrupt accept(); shut it down first so reloads release it.
+            try:
+                self._server_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             try:
                 self._server_socket.close()
             except OSError:
