@@ -882,7 +882,11 @@ def test_handle_client_traces_packets_already_buffered_before_relay(tmp_path, mo
     )
     tls_conn = _FakeSourceSocket(connect_packet + b"\xc0\x00")
 
-    monkeypatch.setattr(socket, "socket", lambda *args, **kwargs: backend)
+    def connect_backend(address):
+        backend.connect(address)
+        return backend
+
+    monkeypatch.setattr(socket, "create_connection", connect_backend)
     monkeypatch.setattr(proxy, "_queue_trace_packet", lambda conn_id, direction, packet: traced.append((conn_id, direction, packet)))
 
     proxy._running = True
@@ -945,7 +949,7 @@ def test_handle_client_closes_tls_conn_when_connect_is_rejected(tmp_path, monkey
     def _unexpected_backend(*args, **kwargs):
         raise AssertionError("backend socket should not be created for rejected MQTT CONNECT")
 
-    monkeypatch.setattr(socket, "socket", _unexpected_backend)
+    monkeypatch.setattr(socket, "create_connection", _unexpected_backend)
 
     proxy._running = True
     proxy._handle_client(tls_conn, ("127.0.0.1", 4321))
@@ -981,7 +985,7 @@ def test_handle_client_returns_mqtt5_not_authorized_connack_on_rejected_connect(
     def _unexpected_backend(*args, **kwargs):
         raise AssertionError("backend socket should not be created for rejected MQTT CONNECT")
 
-    monkeypatch.setattr(socket, "socket", _unexpected_backend)
+    monkeypatch.setattr(socket, "create_connection", _unexpected_backend)
 
     proxy._running = True
     proxy._handle_client(tls_conn, ("127.0.0.1", 4321))

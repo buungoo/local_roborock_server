@@ -2,6 +2,8 @@
 # The one hostname the stack will serve. Keep this as the hostname only.
 stack_fqdn = "api-roborock.example.com"
 bind_host = "0.0.0.0"
+# Use "::" to serve HTTPS and MQTT/TLS over IPv6 instead. IPv6 listeners are
+# IPv6-only; the embedded broker can remain on IPv4 loopback.
 # Change these if you need custom published ports.
 https_port = 555
 mqtt_tls_port = 8881

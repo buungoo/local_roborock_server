@@ -71,6 +71,20 @@ If your model already has certificate notes on the tested-vacuums page, follow t
 
 ## Method 1: Docker Compose
 
+### IPv6 listeners
+
+For a standalone deployment on an IPv6 network, set `network.bind_host = "::"`
+(all IPv6 interfaces) or a specific IPv6 address. Both HTTPS and MQTT/TLS use
+that address family. IPv6 listeners do not also accept IPv4 connections; the
+default `0.0.0.0` continues to serve IPv4. The embedded broker remains on
+`127.0.0.1` internally, and an external broker may use either address family.
+Publish a local AAAA record for the stack hostname and allow both listener
+ports through the IPv6 firewall. Docker deployments also need working IPv6
+networking and suitable published-port mappings.
+
+This enables IPv6 on the server. It does not establish whether a particular
+vacuum's proprietary cloud client supports IPv6-only Wi-Fi networks.
+
 ### Additional Requirements
 
 - Docker with `docker compose`

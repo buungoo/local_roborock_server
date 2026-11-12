@@ -729,7 +729,9 @@ class MqttTlsProxy:
                 except OSError:
                     pass
 
-    def _handle_client(self, tls_conn: socket.socket | ssl.SSLSocket, addr: tuple[str, int]) -> None:
+    def _handle_client(
+        self, tls_conn: socket.socket | ssl.SSLSocket, addr: tuple[str, int] | tuple[str, int, int, int]
+    ) -> None:
         conn_id = self._next_conn()
         backend: socket.socket | None = None
         relay_started = False
@@ -778,8 +780,7 @@ class MqttTlsProxy:
                         self._queue_trace_packet(conn_id, "b2c", reject_packet)
                 return
 
-            backend = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            backend.connect((self.backend_host, self.backend_port))
+            backend = socket.create_connection((self.backend_host, self.backend_port))
             self._register_conn_endpoints(conn_id, tls_conn, backend)
             if onboarding_candidate is not None:
                 self._set_pending_onboarding_auth(conn_id, onboarding_candidate)
@@ -847,7 +848,7 @@ class MqttTlsProxy:
         self,
         *,
         raw_conn: socket.socket,
-        addr: tuple[str, int],
+        addr: tuple[str, int] | tuple[str, int, int, int],
         tls_ctx: ssl.SSLContext | None,
     ) -> socket.socket | ssl.SSLSocket | None:
         if not self.tls_enabled:
@@ -882,10 +883,13 @@ class MqttTlsProxy:
     def _run(self) -> None:
         tls_ctx = self._build_tls_context() if self.tls_enabled else None
 
-        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._server_socket.bind((self.listen_host, self.listen_port))
-        self._server_socket.listen(10)
+        # Match the configured address family, just like the HTTP listener.
+        # create_server keeps IPv6 listeners IPv6-only, avoiding mapped IPv4
+        # peer addresses in the HTTP/MQTT onboarding identity checks.
+        family, _, _, _, address = socket.getaddrinfo(
+            self.listen_host, self.listen_port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE
+        )[0]
+        self._server_socket = socket.create_server(address, family=family, backlog=10)
         self._running = True
         self.logger.info(
             "%s MQTT proxy listening on %s:%d -> %s:%d",
